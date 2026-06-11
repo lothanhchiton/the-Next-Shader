@@ -430,6 +430,14 @@ vec2 rand2_2(vec2 p) {
     float y = u01(h);
     return vec2(x, y);
 }
+vec2 rand2_2(uvec2 p) {
+    uint h = hash_uvec2(p);
+    h = HashWellons32(h);
+    float x = u01(h);
+    h = HashWellons32(h);
+    float y = u01(h);
+    return vec2(x, y);
+}
 vec2 rand3_2(vec3 p) {
     uint h = hash_uvec3(floatBitsToUint(p));
     h = HashWellons32(h);
@@ -578,9 +586,7 @@ float getBlueNoise(vec2 coord) {
 }
 #ifdef FSH
     float blueNoise  = getBlueNoise(gl_FragCoord.xy * vec2(1.0, 1.0) + vec2(0.0, 0.0));
-    float blueNoise1 = getBlueNoise(gl_FragCoord.xy * vec2(1.61803398875, 2.41421356237) + vec2(17.0, 37.0));
-    float blueNoise2 = getBlueNoise(gl_FragCoord.yx * vec2(0.70710678118, 1.32471795724) + vec2(113.0, 271.0));
-/*
+
     uint randSeed = HashWellons32(uint(gl_FragCoord.x + viewSize.x * gl_FragCoord.y) * uint(frameCounter));
     uint HashWellons() {
         return randSeed = HashWellons32(randSeed);
@@ -588,9 +594,7 @@ float getBlueNoise(vec2 coord) {
     #define RandWellons() (float(HashWellons()) / float(0xffffffffu))
 
 	float whiteNoise  = RandWellons();
-	float whiteNoise1 = RandWellons();
-	float whiteNoise2 = RandWellons();
-*/
+
 #endif
 
 /////////////////////////////////////常用工具/////////////////////////////////////

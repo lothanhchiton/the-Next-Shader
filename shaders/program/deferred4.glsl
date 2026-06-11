@@ -52,7 +52,13 @@ varying vec3 upskylight;
                 float worldDis = length(worldPos);
 
                 vec3 skyColor = RenderSky(worldDir);
-                skyColor = drawSun(skyColor, worldDir);
+                vec3 trans = TransToAtmos(cameraLocation, worldDir);
+                if(isDay) {
+                    skyColor = drawSun(skyColor, worldDir, trans);
+                } else {
+                    skyColor = drawStar(skyColor, worldDir, trans);
+                    skyColor = drawMoon(skyColor, worldDir, trans);
+                }
                 vec4 cloud2D = RenderCloud2D(cameraLocation, worldDir, lightDir, lightLuminance);
                 skyColor = skyColor * cloud2D.a + cloud2D.rgb;
 

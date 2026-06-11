@@ -49,12 +49,12 @@
         return (sun_skycol + moon_skycol);
     }
 
-    vec3 drawSun(vec3 skyColor, vec3 worldDir) {
+    vec3 drawSun(vec3 skyColor, vec3 worldDir, vec3 trans) {
         float r2 = dot(cameraLocation, cameraLocation);
         float d = sqrt(max(0.0, r2 - EarthRadiusSquared));
         float r = sqrt(max(r2, 1e-12));
 
-        vec3 suncol = sunLuminance * TransToAtmos(cameraLocation, worldDir) * 10.0;
+        vec3 suncol = sunLuminance * trans * 10.0;
         float VdotL = dot(worldDir, sunDir);
         if(VdotL > 0.9998 && worldDir.y > -d / r + 0.04) {
             skyColor += suncol;
@@ -65,6 +65,37 @@
 
         return skyColor;
     }
+    vec3 drawStar(vec3 skyColor, vec3 worldDir, vec3 trans) {
+        highp vec2 uv = sph2tex(worldDir) * 20.0;
+        vec3 star = vec3(0.0);
+        for(int i = 0; i < 8; i++) {
+            star += step(worley2DCell(uv), 0.005 + 0.002 * i);
+            uv *= 1.5;
+        }
+
+        float weight = pow4(perlin2D(worldDir.xz / worldDir.y * 0.5));
+        return skyColor + (vec3(0.2, 0.1, 0.25) * 0.04 * weight +
+                           vec3(0.1, 0.4, 0.2) * 0.08 * pow2(weight) +
+                           vec3(0.1, 0.4, 0.5) * 0.12 * pow3(weight) +
+                           rand3_3(worldDir) * star * 0.33 * (weight * 0.99 + 0.01)) * trans;
+    }
+    vec3 drawMoon(vec3 skyColor, vec3 worldDir, vec3 trans) {
+        float round = float(dot(worldDir, moonDir) > 0.9995);
+        float round1 = float(dot(worldDir, normalize(moonDir + vec3(mix(0.005, 0.075, sin(frameTimeCounter * 0.005) * 0.5 + 0.5), 0.0, 0.0))) < 0.9995);
+        return mix(skyColor, moonLuminance * trans * (worley2DCell((worldDir.xz / worldDir.y - moonDir.xz / moonDir.y) * 50.0) * 0.5 + 0.5), round * round1);
+    }
+    vec3 drawMagicCircle(vec3 skyColor, vec3 worldDir, vec3 trans) {
+        highp vec2 uv = sph2tex(worldDir) * 10.0;
+        vec3 star = vec3(0.0);
+        for(int i = 0; i < 4; i++) {
+            star += step(worley2D(uv), 0.005 + 0.002 * i);
+            uv *= 1.5;
+        }
+
+        float weight = 0.2 * (pow4(perlin2D(worldDir.xz / worldDir.y * 0.5)) * 0.99 + 0.01);
+        return skyColor + star * weight * mix(vec3(0.4, 0.8, 0.6), vec3(0.6, 0.4, 0.8), sin(frameTimeCounter + worldDir)) * trans;
+    }
+
 
     vec2 skyboxuvwarp(vec2 uv) {
         float r = length(cameraLocation);

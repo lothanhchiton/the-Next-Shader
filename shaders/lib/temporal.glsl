@@ -11,17 +11,17 @@
         float normalY = texture(colortex7, preScreenPos.xy * 0.5 + vec2(0.5, 0.0)).a;
         vec3 normalPrevNow = normalDecode(vec2(normalX, normalY));
         float normalOk = smoothstep(0.5, 0.9, dot(normalPrevNow, worldNormal));
-/*
-        float depthAtPrevNow = normalAndDepth.a;
+
+        float depthAtPrevNow = texture(colortex7, preScreenPos.xy * 0.5 + 0.5).a;
         float viewZCurrent = linearDepth(depthCurrent);
         float viewZPrevNow = linearDepth(depthAtPrevNow);
         float depthDiff = abs(viewZPrevNow - viewZCurrent) / max(viewZCurrent, 1e-3);
-        float depthOk = 1.0 - smoothstep(0.05, 0.1, depthDiff);
-*/
+        float depthOk = 1.0 - smoothstep(0.2, 0.5, depthDiff);
+
         float camDelta = length(cameraPosition - previousCameraPosition);
         float reset = float(frameCounter < 2 || camDelta > 16.0);
 
-        vec4 historyWeight = vec4(0.95, 0.95, 0.95, 0.5) * normalOk * (1.0 - reset);
+        vec4 historyWeight = vec4(0.95, 0.95, 0.95, 0.5) * depthOk * normalOk * (1.0 - reset);
 
         vec4 preColor = texture(colortex6, preScreenPos.xy * 0.5);
         return mix(curColor, preColor, saturate(historyWeight));

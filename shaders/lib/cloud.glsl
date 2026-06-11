@@ -16,7 +16,7 @@
     float sampleCloudDensity(vec3 pos) {
         float frequency = 0.3;
         float weight = 1.0;
-        float time = 0.03 * frameTimeCounter;
+        float time = 0.02 * frameTimeCounter;
 
         float n = 0.0;
         float c = 0.0;
@@ -32,24 +32,24 @@
         }
         n /= c;
 
-        float cloudmap = saturate((sample2DNoise(pos.xz * 0.2 + frameTimeCounter * 0.02) * 3.0 - 0.5) * 0.5 + 0.5);
+        float cloudmap = saturate((sample2DNoise(pos.xz * 0.2 + frameTimeCounter * 0.01) * 3.0 - 0.5) * 0.5 + 0.5);
         n *= cloudmap;
         n = max0(n - mix(0.5, 0.1, rainStrength));
         n = remapSaturate(n, 0.0, 0.5, 0.0, 1.0);
 
         float frequency1 = 5.0;
         float weight1 = 1.0;
-        float time1 = 0.05 * frameTimeCounter;
+        float time1 = 0.1 * frameTimeCounter;
 
         float n1 = 0.0;
         float c1 = 0.0;
         for(int i = 0; i < 4; i++) {
-            n1 += sample3DNoise(pos * frequency + time) * weight;
-            c1 += weight;
+            n1 += sample3DNoise(pos * frequency1 + time1) * weight1;
+            c1 += weight1;
 
-            frequency *= 2.5;
-            weight *= 0.5;
-            time *= 1.1;
+            frequency1 *= 2.5;
+            weight1 *= 0.5;
+            time1 *= 1.1;
         }
         n1 /= c1;
 
@@ -117,7 +117,7 @@
         float len = max0(lenToCloudEnd - lenToCloud);
 
         vec3 cloudTopPos = pos + dir * lenToCloudTop;
-        lightLuminance *= remapSaturate(lightDir.y, 0.0, 0.02, 0.0, 1.0);
+        lightLuminance *= remapSaturate(lightDir.y, 0.02, 0.1, 0.0, 1.0);
         vec3 lightColor = lightLuminance * TransToAtmos(cloudTopPos, lightDir);
         vec3 ambientColor = saturation(skylight, 0.33) * 3.0;
         ambientColor *= remapSaturate(lightDir.y, 0.0, 0.25, 0.05, 1.0);
@@ -190,22 +190,22 @@
         if(lenToCloud < 0.0) return vec4(0.0, 0.0, 0.0, 1.0);
 
         vec3 cloudpos = pos + dir * lenToCloud;
-        lightLuminance *= remapSaturate(lightDir.y, 0.0, 0.02, 0.0, 1.0);
+        lightLuminance *= remapSaturate(lightDir.y, 0.02, 0.1, 0.0, 1.0);
         vec3 lightColor = lightLuminance * TransToAtmos(cloudpos, lightDir);
 
-        float frequency = 300.0;
+        float frequency = 500.0;
         float weight = 1.0;
-        float time = 0.02 * frameTimeCounter;
+        float time = 0.01 * frameTimeCounter;
 
         vec2 np = cloudpos.xz / Cloud2DReallyHeight;
-        np -= worley2DCell(np * frequency * 0.67 + time) * 0.003;
+        np -= (1.0 - worley2DCell(np * frequency * 1.0 + time)) * 0.001;
         float n = 0.0;
         float c = 0.0;
         for(int i = 0; i < 6; i++) {
             n += perlin2D(np * frequency + time) * weight;
             c += weight;
 
-            frequency *= 2.0;
+            frequency *= 2.5;
             weight *= 0.5;
             time *= 1.1;
         }

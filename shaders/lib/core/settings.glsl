@@ -77,8 +77,12 @@ vec3 moonDir  = mat3(gbufferModelViewInverse) * moonViewDir;
 vec3 lightDir = mat3(gbufferModelViewInverse) * lightViewDir;
 
 vec3 sunLuminance   = vec3(10.0) * mix(1.0, 0.02, sqrt(sqrt(rainStrength)));
-vec3 moonLuminance  = vec3(0.01);
-vec3 lightLuminance = sunDir.y > 0.0 ? sunLuminance : moonLuminance;
+vec3 moonLuminance  = vec3(0.05);
+bool isDay = sunDir.y > 0.0;
+vec3 lightLuminance = isDay ? sunLuminance : moonLuminance;
+
+vec3 handPosition = vec3(0.9, -0.65, -near - 0.1);
+vec3 handPosition2 = vec3(-0.9, -0.65, -near - 0.1);
 
 #define SHADOW_BIAS 0.925
 #define TAA
@@ -86,6 +90,6 @@ vec3 lightLuminance = sunDir.y > 0.0 ? sunLuminance : moonLuminance;
 
 #define RSM_ON
 #define GTAO_ON
-#define VanillaAO
+//#define VanillaAO
 #define WaterCaustics_ON
 //#define REFLECTED_CLOUD

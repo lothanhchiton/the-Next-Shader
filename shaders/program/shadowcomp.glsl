@@ -29,7 +29,7 @@ varying vec2 texcoord;
             outcol.r = texelFetch(shadowcolor0, texelUV + ivec2(1, 1), 0).r;
             outcol.b = texelFetch(shadowcolor0, texelUV + ivec2(-1, -1), 0).b;
             outcol.rgb *= exp(-waterdepth * WaterAbsorptionCoefficient);
-            //outcol.a = 0.0;
+            //outcol.a = 0.25;
         }
 
         color0 = outcol;

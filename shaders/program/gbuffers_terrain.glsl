@@ -58,6 +58,10 @@ varying mat3 tbnMatrix;
         texcolor.rgb *= glcolor.rgb;
         #ifdef VanillaAO
             texcolor.rgb *= glcolor.a;
+        #else
+            if(abs(blockID - 18.0) < 0.5 || abs(blockID - 18.0) < 0.5) {
+                texcolor.rgb *= glcolor.a;
+            }
         #endif
         //texcolor.rgb *= texture(lightmap, lmcoord).rgb;
 

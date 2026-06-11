@@ -24,9 +24,9 @@
         const float f_sample = float(sampleCount);
         radius /= float(shadowMapResolution);
 
-        float jitter = blueNoise;
+        float jitter = whiteNoise;
 
-        float angle = blueNoise1 * _2PI;
+        float angle = blueNoise * _2PI;
         vec2 dir = vec2(cos(angle), sin(angle));
 
         shadowPos = shadowUnDistort(shadowPos * 2.0 - 1.0) * 0.5 + 0.5;
@@ -52,9 +52,9 @@
         const int sampleCount = 16;
         radius /= float(shadowMapResolution);
 
-        float jitter = blueNoise;
+        float jitter = whiteNoise;
 
-        float angle = blueNoise1 * _2PI;
+        float angle = blueNoise * _2PI;
         vec2  dir = vec2(cos(angle), sin(angle));
 
         shadowPos = shadowUnDistort(shadowPos * 2.0 - 1.0) * 0.5 + 0.5;
@@ -118,7 +118,7 @@
     #define GTAO_SLICE_COUNT 3            // [2 3 4 5 6 7 8 9 10]
     #define GTAO_DIRECTION_SAMPLE_COUNT 5 // [1 2 3 4 5 6 7 8 9 10]
     #define GTAO_SEARCH_RADIUS 0.75        // [0.5 0.75 1.0 1.25 1.5 1.75 2.0 2.5 3.0 3.5 4.0 4.5 5.0]
-    #define GTAO_INTENSITY 5.0            // [0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.5 3.0 3.5 4.0 5.0]
+    #define GTAO_INTENSITY 2.5            // [0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.5 3.0 3.5 4.0 5.0]
 
     vec3 GTAOMultiBounce(float ao, vec3 albedo) {
         vec3 a = 2.0404 * albedo - 0.3324;

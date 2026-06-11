@@ -27,14 +27,15 @@
         float f_sample = float(sampleCount);
         float radius = 100.0 / float(shadowMapResolution);
 
-        float jitter = blueNoise;
+        float jitter = whiteNoise;
 
-        float angle = blueNoise1 * _2PI;
+        float angle = blueNoise * _2PI;
         vec2 dir = vec2(cos(angle), sin(angle));
 
         vec3 shadowPos_p = WorldSpaceToShadowSpaceNoDistort(worldPos_p);
 
         vec3 rsm = vec3(0.0);
+        float c = 0.0;
         for(int i = 0; i < sampleCount; i++) {
             float fi = float(i);
             float u = (fi + jitter) / f_sample;
@@ -64,10 +65,12 @@
             float NdotL = max0(dot(worldNormal_q, lightDir));
 
             float sampleWeight = 2.0 * u;
-            rsm += flux_q * NdotL * costheta_p * costheta_q / max(pow2(worldDis_pq), 0.5) * sampleWeight;
+            rsm += flux_q * NdotL * costheta_p * costheta_q / max(pow2(worldDis_pq), 0.5) * saturate(exp2(-worldDis_pq * 0.1)) * sampleWeight;
+            c ++;
         }
+        if(c < 0.5) return vec3(0.0);
 
-        return rsm / f_sample * 400.0 * remapSaturate(length(worldPos_p), 0.0, shadowDistance, 1.0, 0.0);
+        return rsm / c * 500.0 * remapSaturate(length(worldPos_p), 0.0, shadowDistance, 1.0, 0.0);
     }
 
     vec4 rsmBlur(sampler2D tex, vec2 uv, vec2 dir) {
@@ -125,9 +128,9 @@
 
         vec3 shadowPos = shadowUnDistort(distortShadowPos * 2.0 - 1.0) * 0.5 + 0.5;
 
-        float jitter = blueNoise;
+        float jitter = whiteNoise;
 
-        float angle = blueNoise1 * _2PI;
+        float angle = blueNoise * _2PI;
         vec2  dir = vec2(cos(angle), sin(angle));
 
         vec3 centerShadowPos = distortShadowPos;
@@ -163,5 +166,61 @@
 
         return ssscolor * 2.0;
     }
+
+    #include "/lib/shadow.glsl"
+
+    void buildTBN(in vec3 n, out vec3 t, out vec3 b){
+        vec3 up = (abs(n.z) < 0.999) ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+        t = normalize(cross(up, n));
+        b = cross(n, t);
+    }/*
+    vec3 SSPT(vec3 viewPos, vec3 normal) {
+        vec3 tangent, bitangent;
+        buildTBN(normal, tangent, bitangent);
+        mat3 tbn = mat3(tangent, bitangent, normal);
+
+        viewPos += normal * 0.1;
+        vec3 col = vec3(0.0);
+        for(int i = 0; i < 10; i++) {
+            vec3 dir = vec3(blueNoise, blueNoise1, blueNoise2);
+            dir.xy = dir.xy * 2.0 - 1.0;
+            dir = normalize(dir);
+
+            vec3 viewDir = normalize(tbn * dir);
+            vec3 screenPos; bool isHit;
+            screenRayTracing(viewPos, viewDir, screenPos, isHit);
+            if(!isHit) continue;
+
+            vec3 newViewPos = GetViewPosition(screenPos.xy, texture(depthtex1, screenPos.xy).r);
+            vec3 worldPos = matrixMultiply(gbufferModelViewInverse, vec4(newViewPos, 1.0));
+            vec3 shadowPos = WorldSpaceToShadowSpace(worldPos);
+            vec3 shadow = sampleShadow(shadowPos);
+
+            vec3 data0 = texture(colortex0, screenPos.xy).rgb;
+            vec3 data1 = texture(colortex1, screenPos.xy).rgb;
+            vec4 data2 = texture(colortex2, screenPos.xy);
+
+            vec3 albedo = GammaToLinear(data0);
+            vec3 worldNormal = normalDecode(data2.zw);
+            vec3 viewNormal = normalize(mat3(gbufferModelView) * worldNormal);
+            vec2 uv1 = remap(data1.rg, vec2(0.5 / 16.0), vec2(15.5 / 16.0), vec2(0.0), vec2(1.0));
+            float blockID = data1.b * 10000.0;
+            bool isLight = abs(blockID - 89.0) < 0.5;
+
+            vec3  viewDir_pq = normalize(newViewPos - viewPos);
+            float viewDis_pq = distance(newViewPos, viewPos);
+
+            vec3 flux_q = albedo * max0(dot(worldNormal, lightDir)) * shadow;
+            flux_q *= linearstep(0.035, 0.1, uv1.y);
+            if(isLight) flux_q += albedo * 1.0;
+
+            float costheta_p = max0(dot(normal,  viewDir_pq));
+            float costheta_q = max0(dot(viewNormal, -viewDir_pq));
+
+            col += flux_q / PI * costheta_p * costheta_q * (1.0 / pow2(viewDis_pq * 0.1 + 0.1)) * 0.1;
+        }
+
+        return col;
+    }*/
 
 #endif

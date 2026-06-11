@@ -29,9 +29,9 @@ varying vec2 texcoord;
                 bloom += textureBicubic(colortex4, newUV, viewSize).rgb;
             }
         }
-        float mixFactor = 0.01;
+        float mixFactor = 0.02;
         if(isEyeInWater == 1) {
-            //mixFactor = mix(0.05, 0.1, remapSaturate(cameraPosition.y, 64.0, 50.0, 0.0, 1.0));
+            mixFactor = mix(0.05, 0.1, remapSaturate(cameraPosition.y, 64.0, 50.0, 0.0, 1.0));
         }
         outcol = mix(outcol, bloom, mixFactor);
 

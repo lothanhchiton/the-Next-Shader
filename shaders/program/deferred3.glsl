@@ -94,9 +94,17 @@ varying vec4 skySHB;
                 ssslight = SSS(albedo, worldPos, worldDir, lightcol);
             }
 
-            vec3 blocklightcol = vec3(5.0, 2.5, 0.25);
-            vec3 blocklight = albedo * blocklightcol * pow10(uv1.x) * 0.05;
+            vec3 blocklightcol = albedo * vec3(5.0, 2.5, 0.25) * 0.05 * gtao;
+            vec3 blocklight = blocklightcol * pow10(uv1.x);
             vec3 handlight = vec3(0.0);
+            if(heldBlockLightValue > 0.0) {
+                float disToLight = distance(viewPos, handPosition);
+                handlight += blocklightcol * (heldBlockLightValue / 15.0) / max(pow2(disToLight), 0.1) * exp(-disToLight * 0.1);
+            }
+            if(heldBlockLightValue2 > 0.0) {
+                float disToLight = distance(viewPos, handPosition2);
+                handlight += blocklightcol * (heldBlockLightValue2 / 15.0) / max(pow2(disToLight), 0.1) * exp(-disToLight * 0.1);
+            }
 
             vec3 baselight = vec3(0.002) * albedo * gtao * (1.0 - uv1.y);
 

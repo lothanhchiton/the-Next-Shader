@@ -73,8 +73,8 @@ varying vec3 upskylight;
             vec3 mcPos = worldPos + cameraPosition;
 
             float currHeight;
-            vec2 waterUV = waveParallaxMapping(mcPos.xz + mcPos.y, transpose(tbnMatrix) * worldDir, currHeight);
-            vec3 waterNormal = getWaterNormal(mcPos.xz + mcPos.y);
+            vec2 waterUV = waveParallaxMapping(mcPos.xz, transpose(tbnMatrix) * worldDir, currHeight);
+            vec3 waterNormal = getWaterNormal(mcPos.xz);
             vec3 worldNormal = tbnMatrix * waterNormal;
             vec3 worldOriNormal = normal;
 
@@ -93,7 +93,8 @@ varying vec3 upskylight;
                 worldReflectDir = reflect(worldReflectDir, worldOriNormal);
             }
             vec3 rayTracingCol = sampleSkybox(worldReflectDir);
-            rayTracingCol = drawSun(rayTracingCol, worldReflectDir);
+            vec3 trans = TransToAtmos(cameraLocation, worldReflectDir);
+            rayTracingCol = drawSun(rayTracingCol, worldReflectDir, trans);
             #ifdef REFLECTED_CLOUD
                 vec4 cloud2D = RenderCloud2D(cameraLocation, worldReflectDir, lightDir, lightLuminance);
                 rayTracingCol = rayTracingCol * cloud2D.a + cloud2D.rgb;
@@ -117,7 +118,7 @@ varying vec3 upskylight;
 
         else {
             outcol = texture(colortex4, screenPos.xy).rgb;
-            outcol = mix(outcol, texcolor.rgb, texcolor.a);
+            outcol = mix(outcol, GammaToLinear(texcolor.rgb) * lightcol * 0.5, texcolor.a * 0.2);
         }
 
         color0 = vec4(outcol, 1.0);

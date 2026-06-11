@@ -81,17 +81,17 @@
         }
         waterHeight /= c;
 
-        return mix(1.0, waterHeight, 0.5);
+        return mix(1.0, waterHeight, 0.3);
     }
     float getWaterHeight(vec2 pos) {
         //return getWaterWave(pos, 20);
         //return getWaterWave1(pos, 5);
-        return getWaterWave2(pos, 15);
+        return getWaterWave2(pos, int(remapSaturate(distance(pos, cameraPosition.xz), 8.0, 16.0, 14.0, 7.0)));
     }
     float getWaterHeightLod(vec2 pos) {
         //return getWaterWave(pos, 8);
         //return getWaterWave1(pos, 5);
-        return getWaterWave2(pos, 5);
+        return getWaterWave2(pos, 4);
     }
 
     vec3 getWaterNormal(vec2 uv) {
