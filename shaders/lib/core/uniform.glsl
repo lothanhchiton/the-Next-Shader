@@ -37,6 +37,7 @@ uniform mat4 shadowProjectionInverse;
 uniform mat4 shadowModelView;
 uniform mat4 shadowModelViewInverse;
 uniform float wetness;
+uniform float isRain;
 uniform float eyeAltitude;
 uniform ivec2 eyeBrightness;
 uniform ivec2 eyeBrightnessSmooth;

@@ -1,8 +1,16 @@
 option.INFOMATION = This Shader
-value.INFOMATION.A = By Coldnight
-value.INFOMATION.B = Modified By Tax
+value.INFOMATION.A = By Coldnight || Modified By Tax
+
+screen.LIGHTING = Lighting
+
+screen.SSPT = Screen Space Path Tracing
+option.SSPT = SSPT
+option.SSPT_INTENSITY = PT Strength
+option.SSPT_MAX_FRAMES = Temporal Accumulation Max Frames
 
 screen.SURFACE = Surface
+
+option.RAIN_PUDDLES = Rain Puddles
 
 screen.POM = POM
 option.PARALLAX = Parallax

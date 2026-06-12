@@ -1,5 +1,9 @@
 ////////////////////////////////////数学运算//////////////////////////////////
 
+float pSqrt(float x) {
+    return sqrt(clamp(x, 0.0, 1.0));
+}
+
 float pow3_2(float x) {
     return x * sqrt(x);
 }

@@ -28,12 +28,25 @@ varying vec4 skySHB;
 
 #ifdef FSH
 
+    layout(std430, binding = 0) buffer ssptBuffer {
+        vec4 ssptData[];
+    };
+
     #include "/lib/light.glsl"
     #include "/lib/sky.glsl"
     #include "/lib/shadow.glsl"
+    #include "/lib/sspt.glsl"
 
     /* RENDERTARGETS: 0 */
     layout(location = 0) out vec4 color0;
+
+    vec3 heldLightColor(vec3 handPos) {
+        vec3 screenPos = ViewSpaceToScreenSpace(handPos, gbufferProjection);
+        if(inScreen(screenPos.xy)) {
+            return texture(colortex7, screenPos.xy).rgb;
+        }
+        return vec3(1.0);
+    }
 
     void main() {
         vec3 outcol = vec3(0.1, 0.2, 0.4) * (max0(sunDir.y) * 1.5 + max0(moonDir.y) * 0.25);
@@ -61,6 +74,9 @@ varying vec4 skySHB;
             float blockID = data1.b * 10000.0;
             float roughness = (1.0 - data3.r);
             float metallic = data3.g;
+            float wetFactor = pow2(rainStrength) * uv1.y;
+            albedo *= 1.0 - wetFactor * 0.25;
+            roughness = mix(roughness, roughness * 0.7, wetFactor * 0.5);
             bool isGrass = abs(blockID - 31.0) < 0.5 || abs(blockID - 32.0) < 0.5 || abs(blockID - 33.0) < 0.5;
             bool isLeaves = abs(blockID - 18.0) < 0.5;
             bool isHand = abs(blockID - 9999.0) < 0.5;
@@ -94,31 +110,65 @@ varying vec4 skySHB;
             vec3 skylight = FromSphericalHarmonics(skySHR, skySHG, skySHB, worldNormal);
             skylight = skylight * pow5(uv1.y) * gtao;
             skylight *= pow2(dot(worldNormal, vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5) * 2.0;
-            vec3 rsm = data4.rgb * lightcol;
-            vec3 ambientlight = (skylight + rsm) * albedo;
+
+            #ifdef SSPT
+                vec3 ambientlight = skylight * albedo;
+                if(!isHand) ambientlight += sspt(viewPos, worldPos, worldNormal, albedo);
+            #else
+                vec3 rsm = data4.rgb * lightcol;
+                vec3 ambientlight = (skylight + rsm) * albedo;
+            #endif
+
+            #ifdef SSPT
+                ambientlight += sspt(viewPos, worldPos, worldNormal, albedo);
+            #endif
 
             vec3 ssslight = vec3(0.0);
             if(isLeaves) {
                 ssslight = SSS(albedo, worldPos, worldDir, lightcol);
             }
 
-            vec3 blocklightcol = albedo * vec3(5.0, 2.5, 0.25) * 0.05 * gtao;
-            vec3 blocklight = blocklightcol * pow10(uv1.x);
-            vec3 handlight = vec3(0.0);
-            if(heldBlockLightValue > 0.0) {
-                float disToLight = distance(viewPos, handPosition);
-                handlight += blocklightcol * (heldBlockLightValue / 15.0) / max(pow2(disToLight), 0.1) * exp(-disToLight * 0.1);
-            }
-            if(heldBlockLightValue2 > 0.0) {
-                float disToLight = distance(viewPos, handPosition2);
-                handlight += blocklightcol * (heldBlockLightValue2 / 15.0) / max(pow2(disToLight), 0.1) * exp(-disToLight * 0.1);
-            }
+            bool isEmissive = abs(blockID - 89.0) < 0.5;
+
+            #ifdef SSPT
+                vec3 blocklight = isEmissive ? albedo * pow10(uv1.x) * 4.0 : vec3(0.0);
+            #else
+                vec3 blocklightcol = albedo * vec3(5.0, 2.5, 0.25) * 0.05 * gtao;
+                vec3 blocklight = blocklightcol * pow10(uv1.x);
+            #endif
+
+            #ifdef SSPT
+                vec3 handlight = vec3(0.0);
+                if(heldBlockLightValue > 0.0) {
+                    vec3 lightCol = heldLightColor(handPosition);
+                    float disToLight = distance(viewPos, handPosition);
+                    handlight += albedo * lightCol * gtao * 5.0 * (heldBlockLightValue / 15.0) / max(pow2(disToLight), 0.1) * exp(-disToLight * 0.1);
+                }
+                if(heldBlockLightValue2 > 0.0) {
+                    vec3 lightCol = heldLightColor(handPosition2);
+                    float disToLight = distance(viewPos, handPosition2);
+                    handlight += albedo * lightCol * gtao * 5.0 * (heldBlockLightValue2 / 15.0) / max(pow2(disToLight), 0.1) * exp(-disToLight * 0.1);
+                }
+            #else
+                vec3 handlight = vec3(0.0);
+                if(heldBlockLightValue > 0.0) {
+                    float disToLight = distance(viewPos, handPosition);
+                    handlight += blocklightcol * (heldBlockLightValue / 15.0) / max(pow2(disToLight), 0.1) * exp(-disToLight * 0.1);
+                }
+                if(heldBlockLightValue2 > 0.0) {
+                    float disToLight = distance(viewPos, handPosition2);
+                    handlight += blocklightcol * (heldBlockLightValue2 / 15.0) / max(pow2(disToLight), 0.1) * exp(-disToLight * 0.1);
+                }
+            #endif
 
             vec3 baselight = vec3(0.002) * albedo * gtao * (1.0 - uv1.y);
 
             outcol = directlight + ambientlight + ssslight + blocklight + handlight + baselight;
 
             if(rainStrength > 1e-6 && uv1.y > 1e-6 && !isGrass) {
+                float smoothness = data3.r;
+                float puddleMask = smoothstep(0.7, 0.92, smoothness);
+
                 vec3 worldReflectDir = reflect(worldDir, worldNormal);
                 vec3 viewReflectDir = normalize(mat3(gbufferModelView) * worldReflectDir);
 
@@ -126,15 +176,19 @@ varying vec4 skySHB;
                 bool rayTracingIsHit = false;
                 screenRayTracingDDA(viewPos, viewReflectDir, rayTracingPos, rayTracingIsHit);
 
-                vec3 reflectSkyCol = sampleSkybox(worldReflectDir) * uv1.y;
-                vec3 rayTracingCol = reflectSkyCol;
+                vec3 rayTracingCol = sampleSkybox(worldReflectDir) * uv1.y;
                 if(rayTracingIsHit) {
                     vec2 prevUV = getPreCoord(rayTracingPos.xy);
                     rayTracingCol = texture(colortex7, outScreen(prevUV) ? rayTracingPos.xy : prevUV).rgb;
                 }
 
-                float fresnel = fresnelSchlick(max0(dot(worldNormal, -worldDir)), 0.02);
-                outcol = mix(outcol, rayTracingCol, fresnel * pow2(rainStrength) * uv1.y);
+                float wetFresnel = fresnelSchlick(max0(dot(worldNormal, -worldDir)), 0.02);
+                outcol = mix(outcol, rayTracingCol, wetFresnel * wetFactor * 0.4);
+
+                if(puddleMask > 0.001) {
+                    float fresnel = fresnelSchlick(max0(dot(worldNormal, -worldDir)), 0.02);
+                    outcol = mix(outcol, rayTracingCol, fresnel * puddleMask);
+                }
             }
         }
 

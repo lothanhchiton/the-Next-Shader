@@ -11,6 +11,8 @@ varying mat3 tbnMatrix;
 varying vec3 viewDirTS;
 varying vec4 tileBounds;
 
+varying vec3 worldPos;
+
 #ifdef VSH
 
     #if MC_VERSION >= 11500
@@ -52,6 +54,7 @@ varying vec4 tileBounds;
         vec2 midUV = (gl_TextureMatrix[0] * vec4(mc_midTexCoord, 0.0, 1.0)).xy;
         vec2 halfExt = abs(texcoord - midUV);
         tileBounds = vec4(midUV - halfExt, midUV + halfExt);
+        worldPos = (gbufferModelViewInverse * (gl_ModelViewMatrix * vec4(model_pos, 1.0))).xyz + cameraPosition;
     }
 
 #endif
@@ -59,6 +62,7 @@ varying vec4 tileBounds;
 #ifdef FSH
 
      #include "/lib/parallax.glsl"
+     #include "/lib/rainPuddles.glsl"
 
     /* RENDERTARGETS: 0,1,2,3 */
     layout(location = 0) out vec4 color0;
@@ -97,6 +101,10 @@ varying vec4 tileBounds;
         normalData.xyz = normalize(normalData.xyz * 2.0 - 1.0);
         vec3 mappedNormal = normalize(tbnMatrix * normalData.xyz);
         vec4 specularData = texture(specular, pomUV);
+
+        #ifdef RAIN_PUDDLES
+            rainPuddles(worldPos, normal, tbnMatrix, lmcoord, mappedNormal, specularData);
+        #endif
 
         color0 = vec4(texcolor.rgb, 1.0);
         color1 = vec4(lmcoord, blockID / 10000.0, pomShadow);
