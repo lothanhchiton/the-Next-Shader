@@ -1,6 +1,10 @@
 #ifndef SSPT_GLSL
     #define SSPT_GLSL a
 
+    layout(std430, binding = 1) buffer ssptDenoised0Buffer {
+        vec4 ssptDenoised0[];
+    };
+
     int getIndex(ivec2 pixel) {
         pixel = clamp(pixel, ivec2(0), ivec2(viewSize) - 1);
         return pixel.x + pixel.y * int(viewSize.x);
@@ -43,7 +47,8 @@
         vec3 result = newSample;
         if(inScreen(preScreenPos.xy)) {
             ivec2 prevPixel = ivec2(preScreenPos.xy * vec2(viewSize));
-            vec4 history = ssptData[getIndex(prevPixel)];
+
+            vec4 history = ssptDenoised0[getIndex(prevPixel)];
 
             float count = min(history.a + 1.0, SSPT_MAX_FRAMES);
             result = mix(history.rgb, newSample, 1.0 / count);

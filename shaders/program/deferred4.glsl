@@ -1,103 +1,103 @@
+
+
 #include "/lib/basefiles.glsl"
 
-varying vec2 texcoord;
-varying vec3 lightcol;
-varying vec3 upskylight;
+const vec2 workGroupsRender = vec2(1.0, 1.0);
 
-#ifdef VSH
+layout (local_size_x = 16, local_size_y = 16) in;
 
-    void main() {
-        gl_Position = ftransform();
-        texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
+layout(std430, binding = 0) buffer ssptBuffer {
+    vec4 ssptData[];
+};
 
-        lightcol   = texelFetch(colortex5, ivec2(viewSize - 1.0) - ivec2(2, 0), 0).rgb;
-        upskylight = texelFetch(colortex5, ivec2(viewSize - 1.0) - ivec2(6, 0), 0).rgb;
+layout(std430, binding = 1) buffer ssptDenoised0Buffer {
+    vec4 ssptDenoised0[];
+};
+
+const float kernel[3] = float[3](1.0, 2.0/3.0, 1.0/6.0);
+
+int getIndex(ivec2 pixel) {
+    pixel = clamp(pixel, ivec2(0), ivec2(viewSize) - 1);
+    return pixel.x + pixel.y * int(viewSize.x);
+}
+
+float luma(vec3 c) {
+    return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+void main() {
+    ivec2 px = ivec2(gl_GlobalInvocationID.xy);
+    if(px.x >= int(viewSize.x) || px.y >= int(viewSize.y)) return;
+
+    int centerIdx = getIndex(px);
+    vec4 centerData = ssptData[centerIdx];
+
+    float centerDepth = texelFetch(depthtex1, px, 0).r;
+    if(centerDepth >= 1.0) {
+        ssptDenoised0[centerIdx] = centerData;
+        return;
     }
 
-#endif
+    vec4 d2 = texelFetch(colortex2, px, 0);
+    vec3 centerNormal = normalDecode(d2.zw);
+    float centerLuma = luma(centerData.rgb);
 
-#ifdef FSH
-
-    #include "/lib/sky.glsl"
-    #include "/lib/fog.glsl"
-    #include "/lib/cloud.glsl"
-    #include "/lib/temporal.glsl"
-
-    /* RENDERTARGETS: 4,6,10 */
-    layout(location = 0) out vec4 color4;
-    layout(location = 1) out vec4 color6;
-    layout(location = 2) out vec4 color10;
-
-    void main() {
-        vec4 outcol4 = vec4(0.0, 0.0, 0.0, 1.0);
-        vec4 outcol6 = texelFetch(colortex6, texelUV, 0);
-
-        vec2 texcoord4 = texcoord * 2.0;
-        if(inScreen(texcoord4)) {
-            bool issky = false;
-            for(int i = -1; i <= 1; i++){
-                for(int j = -1; j <= 1; j++){
-                    ivec2 nowUV = ivec2(texcoord4 * viewSize) + ivec2(i, j);
-                    float nowDepth = texelFetch(depthtex1, nowUV, 0).r;
-
-                    issky = issky || (nowDepth == 1.0);
-                }
-            }
-            if(issky) {
-                float depth = texture(depthtex1, texcoord4).r;
-
-                vec3 viewPos = GetViewPosition(texcoord4, depth);
-                vec3 worldPos = matrixMultiply(gbufferModelViewInverse, vec4(viewPos, 1.0));
-                vec3 worldDir = normalize(mat3(gbufferModelViewInverse) * viewPos);
-                float worldDis = length(worldPos);
-
-                vec3 skyColor = RenderSky(worldDir);
-                vec3 trans = TransToAtmos(cameraLocation, worldDir);
-                if(isDay) {
-                    skyColor = drawSun(skyColor, worldDir, trans);
-                } else {
-                    skyColor = drawStar(skyColor, worldDir, trans);
-                    skyColor = drawMoon(skyColor, worldDir, trans);
-                }
-                vec4 cloud2D = RenderCloud2D(cameraLocation, worldDir, lightDir, lightLuminance);
-                skyColor = skyColor * cloud2D.a + cloud2D.rgb;
-
-                float jitter = blueNoise * 0.01;
-                outcol4.rgb = skyColor + vec3(blueNoise / 255.0) * lightcol;
-            }
+    float meanLuma = 0.0;
+    float meanLuma2 = 0.0;
+    float wsum0 = 0.0;
+    for(int j = -1; j <= 1; j++) {
+        for(int i = -1; i <= 1; i++) {
+            ivec2 p = px + ivec2(i, j);
+            if(p.x < 0 || p.y < 0 || p.x >= int(viewSize.x) || p.y >= int(viewSize.y)) continue;
+            float l = luma(ssptData[getIndex(p)].rgb);
+            meanLuma += l;
+            meanLuma2 += l * l;
+            wsum0 += 1.0;
         }
+    }
+    meanLuma /= wsum0;
+    meanLuma2 /= wsum0;
+    float variance = max(meanLuma2 - meanLuma * meanLuma, 1e-6);
 
-        vec2 texcoord41 = (texcoord - vec2(0.5, 0.0)) * 2.0;
-        if(inScreen(texcoord41) || rainStrength > 0.5) {
-            int radius = lightDir.y > 0.25 ? 1 : 2;
-            bool issky = false;
-            for(int i = -radius; i <= radius; i++){
-                for(int j = -radius; j <= radius; j++){
-                    ivec2 nowUV = ivec2(texcoord41 * viewSize) + ivec2(i, j);
-                    float nowDepth = texelFetch(depthtex1, nowUV, 0).r;
+    float histFactor = clamp(1.0 - centerData.a / SSPT_MAX_FRAMES, 0.1, 1.0);
 
-                    issky = issky || (nowDepth == 1.0);
-                }
-            }
-            if(issky) {
-                float depth = texture(depthtex1, texcoord41).r;
+    vec3 sumColor = centerData.rgb * kernel[0] * kernel[0];
+    float sumWeight = kernel[0] * kernel[0];
 
-                vec3 viewPos = GetViewPosition(texcoord41, depth);
-                vec3 worldPos = matrixMultiply(gbufferModelViewInverse, vec4(viewPos, 1.0));
-                vec3 worldDir = normalize(mat3(gbufferModelViewInverse) * viewPos);
+    for(int j = -2; j <= 2; j++) {
+        for(int i = -2; i <= 2; i++) {
+            if(i == 0 && j == 0) continue;
 
-                vec3 skylight = upskylight;
-                vec4 cloud3D = RenderCloud(cameraLocation, worldDir, lightDir, lightLuminance, skylight);
+            ivec2 p = px + ivec2(i, j) * 1;
+            if(p.x < 0 || p.y < 0 || p.x >= int(viewSize.x) || p.y >= int(viewSize.y)) continue;
 
-                outcol4 = cloud3D;
-                outcol4 = cloudTemporal(outcol4, worldPos);
-            }
-            outcol6 = outcol4;
+            float sampleDepth = texelFetch(depthtex1, p, 0).r;
+            if(sampleDepth >= 1.0) continue;
+
+            vec4 d2s = texelFetch(colortex2, p, 0);
+            vec3 sampleNormal = normalDecode(d2s.zw);
+
+            vec4 sampleData = ssptData[getIndex(p)];
+            float sampleLuma = luma(sampleData.rgb);
+
+            float kw = kernel[abs(i)] * kernel[abs(j)];
+
+            float depthDiff = abs(centerDepth - sampleDepth);
+            float wDepth = exp(-depthDiff / (0.25 * 0.01 + 1e-6));
+
+            float normalDot = max(dot(centerNormal, sampleNormal), 0.0);
+            float wNormal = pow(normalDot, 32.0);
+
+            float lumaDiff = abs(centerLuma - sampleLuma);
+            float wLuma = exp(-lumaDiff * lumaDiff / (4.0 * sqrt(variance) * histFactor + 1e-6));
+
+            float w = kw * wDepth * wNormal * wLuma;
+
+            sumColor += sampleData.rgb * w;
+            sumWeight += w;
         }
-
-        color4 = outcol4;
-        color6 = outcol6;
-        color10 = color4;
     }
 
-#endif
+    vec3 filtered = sumColor / max(sumWeight, 1e-6);
+    ssptDenoised0[centerIdx] = vec4(filtered, centerData.a);
+}

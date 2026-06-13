@@ -30,11 +30,11 @@ void main() {
     if(px.x >= int(viewSize.x) || px.y >= int(viewSize.y)) return;
 
     int centerIdx = getIndex(px);
-    vec4 centerData = ssptDenoised1[centerIdx];
+    vec4 centerData = ssptDenoised0[centerIdx];
 
     float centerDepth = texelFetch(depthtex1, px, 0).r;
     if(centerDepth >= 1.0) {
-        ssptDenoised0[centerIdx] = centerData;
+        ssptDenoised1[centerIdx] = centerData;
         return;
     }
 
@@ -49,7 +49,7 @@ void main() {
         for(int i = -1; i <= 1; i++) {
             ivec2 p = px + ivec2(i, j);
             if(p.x < 0 || p.y < 0 || p.x >= int(viewSize.x) || p.y >= int(viewSize.y)) continue;
-            float l = luma(ssptDenoised1[getIndex(p)].rgb);
+            float l = luma(ssptDenoised0[getIndex(p)].rgb);
             meanLuma += l;
             meanLuma2 += l * l;
             wsum0 += 1.0;
@@ -68,7 +68,7 @@ void main() {
         for(int i = -2; i <= 2; i++) {
             if(i == 0 && j == 0) continue;
 
-            ivec2 p = px + ivec2(i, j) * 4;
+            ivec2 p = px + ivec2(i, j) * 2;
             if(p.x < 0 || p.y < 0 || p.x >= int(viewSize.x) || p.y >= int(viewSize.y)) continue;
 
             float sampleDepth = texelFetch(depthtex1, p, 0).r;
@@ -77,7 +77,7 @@ void main() {
             vec4 d2s = texelFetch(colortex2, p, 0);
             vec3 sampleNormal = normalDecode(d2s.zw);
 
-            vec4 sampleData = ssptDenoised1[getIndex(p)];
+            vec4 sampleData = ssptDenoised0[getIndex(p)];
             float sampleLuma = luma(sampleData.rgb);
 
             float kw = kernel[abs(i)] * kernel[abs(j)];
@@ -99,5 +99,5 @@ void main() {
     }
 
     vec3 filtered = sumColor / max(sumWeight, 1e-6);
-    ssptDenoised0[centerIdx] = vec4(filtered, centerData.a);
+    ssptDenoised1[centerIdx] = vec4(filtered, centerData.a);
 }
