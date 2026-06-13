@@ -4,7 +4,7 @@ value.INFOMATION.A = By Coldnight || Modified By Tax
 screen.LIGHTING = Lighting
 
 option.LIGHT_MODE = Light Mode
-value.LIGHT_MODE.1 = GI - RSM (Default)
+value.LIGHT_MODE.1 = Reflective Shadow Map (Default)
 value.LIGHT_MODE.2 = Screen Space Path Tracing
 option.SSPT_INTENSITY = PT Strength
 option.SSPT_MAX_FRAMES = Temporal Accumulation Max Frames
@@ -12,6 +12,7 @@ option.SSPT_MAX_FRAMES = Temporal Accumulation Max Frames
 screen.SURFACE = Surface
 
 option.RAIN_PUDDLES = Rain Puddles
+option.SPECULAR_REFLECTION = Specular Reflection
 
 screen.POM = POM
 option.PARALLAX = Parallax

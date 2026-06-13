@@ -115,3 +115,5 @@ vec3 handPosition2 = vec3(-0.9, -0.65, -near - 0.1);
 #else
 #define RSM_ON
 #endif
+
+// #define SPECULAR_REFLECTION
