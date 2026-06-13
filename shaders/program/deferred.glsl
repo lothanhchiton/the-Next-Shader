@@ -51,7 +51,7 @@ varying vec2 texcoord;
                     float gtao = 1.0;
                 #endif
 
-                #if defined RSM_ON && !defined SSPT
+                #if LIGHT_MODE == 1
                     vec3 rsm = vec3(0.0);
                     if(uv1.y > 0.02) rsm = RSM(worldPos, worldNormal) * uv1.y;
 

@@ -88,7 +88,6 @@ vec3 handPosition2 = vec3(-0.9, -0.65, -near - 0.1);
 #define TAA
 #define TAA_Intensity 0.25
 
-#define RSM_ON
 #define GTAO_ON
 //#define VanillaAO
 #define WaterCaustics_ON
@@ -107,13 +106,12 @@ vec3 handPosition2 = vec3(-0.9, -0.65, -near - 0.1);
 
 #define RAIN_PUDDLES
 
-// #define SSPT
+#define LIGHT_MODE 1 // [1 2]
 #define SSPT_INTENSITY 1.0 // [0.7 0.75 0.8 0.85 0.9 0.95 1.0 1.05 1.1 1.15 1.2 1.25 1.3 1.35 1.4 1.45 1.5 1.55 1.6 1.65 1.7 1.75 1.8 1.85 1.9 1.95 2.0 2.05 2.1 2.15 2.2 2.25 2.3 2.35 2.4 2.45 2.5 2.55 2.6 2.65 2.7 2.75 2.8 2.85 2.9 2.95 3.0 3.05 3.1 3.15 3.2 3.25 3.3 3.35 3.4 3.45 3.5 3.55 3.6 3.65 3.7 3.75 3.8 3.85 3.9 3.95 4.0 4.05 4.1 4.15 4.2 4.25 4.3 4.35 4.4 4.45 4.5 4.55 4.6 4.65 4.7 4.75 4.8 4.85 4.9 4.95 5.0]
 #define SSPT_MAX_FRAMES 16.0 // [8.0 16.0 24.0 32.0 40.0 48.0 56.0 64.0 72.0 80.0 88.0 96.0 104.0 112.0 120.0 128.0]
 
-#ifdef SSPT
+#if LIGHT_MODE == 2
 #undef RSM_ON
-#endif
-#ifdef RSM_ON
-#undef SSPT
+#else
+#define RSM_ON
 #endif

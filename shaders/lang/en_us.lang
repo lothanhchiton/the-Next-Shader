@@ -3,8 +3,9 @@ value.INFOMATION.A = By Coldnight || Modified By Tax
 
 screen.LIGHTING = Lighting
 
-screen.SSPT = Screen Space Path Tracing
-option.SSPT = SSPT
+option.LIGHT_MODE = Light Mode
+value.LIGHT_MODE.1 = GI - RSM (Default)
+value.LIGHT_MODE.2 = Screen Space Path Tracing
 option.SSPT_INTENSITY = PT Strength
 option.SSPT_MAX_FRAMES = Temporal Accumulation Max Frames
 

@@ -92,11 +92,9 @@ varying vec4 skySHB;
                 shadow = getShadow(worldPos + worldNormal * 0.01 * worldDis);
             }
 
-            #if defined PARALLAX && defined PARALLAX_SHADOW
-                if (!isHand && !isGrass) {
-                    shadow *= data1.a;
-                }
-            #endif
+            if (!isHand && !isGrass) {
+                shadow *= data1.a;
+            }
 
             float repairlightleakage = isEyeInWater == 0 ? linearstep(0.035, 0.1, uv1.y) : 1.0;
 
@@ -111,7 +109,7 @@ varying vec4 skySHB;
             skylight = skylight * pow5(uv1.y) * gtao;
             skylight *= pow2(dot(worldNormal, vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5) * 2.0;
 
-            #ifdef SSPT
+            #if LIGHT_MODE == 2
                 vec3 ambientlight = skylight * albedo;
                 if(!isHand) ambientlight += sspt(viewPos, worldPos, worldNormal, albedo);
             #else
@@ -119,7 +117,7 @@ varying vec4 skySHB;
                 vec3 ambientlight = (skylight + rsm) * albedo;
             #endif
 
-            #ifdef SSPT
+            #if LIGHT_MODE == 2
                 ambientlight += sspt(viewPos, worldPos, worldNormal, albedo);
             #endif
 
@@ -130,14 +128,14 @@ varying vec4 skySHB;
 
             bool isEmissive = abs(blockID - 89.0) < 0.5;
 
-            #ifdef SSPT
+            #if LIGHT_MODE == 2
                 vec3 blocklight = isEmissive ? albedo * pow10(uv1.x) * 4.0 : vec3(0.0);
             #else
                 vec3 blocklightcol = albedo * vec3(5.0, 2.5, 0.25) * 0.05 * gtao;
                 vec3 blocklight = blocklightcol * pow10(uv1.x);
             #endif
 
-            #ifdef SSPT
+            #if LIGHT_MODE == 2
                 vec3 handlight = vec3(0.0);
                 if(heldBlockLightValue > 0.0) {
                     vec3 lightCol = heldLightColor(handPosition);
