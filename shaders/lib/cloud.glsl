@@ -1,20 +1,12 @@
 #ifndef CLOUD_GLSL
-    #define CLOUD_GLSL A
+    #define CLOUD_GLSL
 
     #define CloudScatteringCoefficient 50.0
     #define CloudAbsorptionCoefficient 20.0
     #define CloudMultiScatteringD 0.5
 
-    #define CloudHeight 2.0
-    #define CloudThickness 1.0
-
-    #define CloudDensityMultiplier 1.0
-
-    const float CloudBottomHeight = EarthRadius + CloudHeight;
-    const float CloudTopHeight = CloudBottomHeight + CloudThickness;
-
-    float sampleCloudDensity(vec3 pos) {
-        float frequency = 0.3;
+    float sampleCloudDensity(vec3 pos, float cloudBottomHeight, float cloudThickness) {
+        float frequency = mix(CLOUD_CLEAR_SCALE, CLOUD_RAIN_SCALE, rainStrength);
         float weight = 1.0;
         float time = 0.02 * frameTimeCounter;
 
@@ -33,7 +25,8 @@
         float cloudmap = saturate((sample2DNoise(pos.xz * 0.2 + frameTimeCounter * 0.01) * 3.0 - 0.5) * 0.5 + 0.5);
         n *= cloudmap;
 
-        float bias = mix(0.5, 0.1, rainStrength);
+        float coverage = mix(CLOUD_CLEAR_COVERAGE, CLOUD_RAIN_COVERAGE, rainStrength);
+        float bias = 1.0 - coverage;
         n = max0(n - bias) / max(1.0 - bias, 1e-4);
         n = saturate(n);
 
@@ -53,7 +46,7 @@
         }
         n1 /= c1;
 
-        float h = saturate((length(pos) - CloudBottomHeight) / CloudThickness);
+        float h = saturate((length(pos) - cloudBottomHeight) / cloudThickness);
 
         float s = smoothstep(0.0, 1.0, h);
         s = s * 0.8 + 0.25;
@@ -65,9 +58,11 @@
         float bottomFade = smoothstep(0.0, 0.08, h);
         n *= bottomFade;
 
-        return saturate(n) * CloudDensityMultiplier;
+        float density = mix(CLOUD_CLEAR_DENSITY, CLOUD_RAIN_DENSITY, rainStrength);
+        return saturate(n) * density;
     }
-    float CloudOpticalDepth(vec3 pos, vec3 dir, float len, float currDensity, int N_SAMPLE) {
+
+    float CloudOpticalDepth(vec3 pos, vec3 dir, float len, float currDensity, int N_SAMPLE, float cloudBottomHeight, float cloudThickness) {
         if(len <= 0.0) return 0.0;
 
         float ds = len / float(N_SAMPLE);
@@ -75,12 +70,11 @@
         vec3 stepVec = dir * ds;
 
         float density0 = currDensity;
-
         float opticalDepth = 0.0;
         for(int i = 0; i < N_SAMPLE; i++) {
             samplePos += stepVec;
 
-            float density = sampleCloudDensity(samplePos);
+            float density = sampleCloudDensity(samplePos, cloudBottomHeight, cloudThickness);
 
             opticalDepth += density0 + density;
             density0 = density;
@@ -88,21 +82,27 @@
 
         return opticalDepth * 0.5 * ds;
     }
-    float CloudTransmittance(vec3 pos, vec3 dir, float currDensity, int N_SAMPLE) {
-        float lenToCloudTop = rayIntersectSphere(pos, dir, CloudTopHeight * CloudTopHeight);
 
-        float len = min(lenToCloudTop, CloudThickness * 0.5);
+    float CloudTransmittance(vec3 pos, vec3 dir, float currDensity, int N_SAMPLE, float cloudTopHeight, float cloudBottomHeight, float cloudThickness) {
+        float lenToCloudTop = rayIntersectSphere(pos, dir, cloudTopHeight * cloudTopHeight);
 
-        float optic = CloudOpticalDepth(pos, dir, len, currDensity, N_SAMPLE);
+        float len = min(lenToCloudTop, cloudThickness * 0.5);
+        float optic = CloudOpticalDepth(pos, dir, len, currDensity, N_SAMPLE, cloudBottomHeight, cloudThickness);
         return exp(-(CloudScatteringCoefficient + CloudAbsorptionCoefficient) * optic);
     }
+
     vec4 RenderCloud(vec3 pos, vec3 dir, vec3 lightDir, vec3 lightLuminance, vec3 skylight) {
-        float lenToCloudBottom = rayIntersectSphere(pos, dir, CloudBottomHeight * CloudBottomHeight);
-        float lenToCloudTop = rayIntersectSphere(pos, dir, CloudTopHeight * CloudTopHeight);
+        float cloudAltitude = mix(CLOUD_CLEAR_ALTITUDE,  CLOUD_RAIN_ALTITUDE,  rainStrength);
+        float cloudThickness = mix(CLOUD_CLEAR_THICKNESS, CLOUD_RAIN_THICKNESS, rainStrength);
+        float cloudBottomHeight = EarthRadius + cloudAltitude;
+        float cloudTopHeight = cloudBottomHeight + cloudThickness;
+
+        float lenToCloudBottom = rayIntersectSphere(pos, dir, cloudBottomHeight * cloudBottomHeight);
+        float lenToCloudTop = rayIntersectSphere(pos, dir, cloudTopHeight    * cloudTopHeight);
 
         float lenToCloud = 0.0;
         float lenToCloudEnd = 0.0;
-        if(pos.y < CloudBottomHeight) {
+        if(pos.y < cloudBottomHeight) {
             float lenToEarth = rayIntersectSphere(pos, dir, pow2(EarthRadius + ReferenceHeight));
             if(lenToEarth > 0.0) {
                 return vec4(vec3(0.0), 1.0);
@@ -110,7 +110,7 @@
                 lenToCloud = max0(lenToCloudBottom);
                 lenToCloudEnd = max0(lenToCloudTop);
             }
-        } else if(pos.y < CloudTopHeight) {
+        } else if(pos.y < cloudTopHeight) {
             lenToCloud = 0.0;
             if(lenToCloudBottom > 0.0) {
                 lenToCloudEnd = max0(lenToCloudBottom);
@@ -130,13 +130,12 @@
         ambientColor *= remapSaturate(lightDir.y, 0.0, 0.25, 0.05, 1.0);
 
         float cosTheta = dot(lightDir, dir);
-        float forwardPhase = getPhase(cosTheta, 0.5);
+        float forwardPhase = getPhase(cosTheta,  0.5);
         float rearPhase = getPhase(cosTheta, -0.5);
         float phase = mix(forwardPhase, rearPhase, 0.2);
         float uniform_phase = 1.0 / (4.0 * PI);
 
-        int sampleCount = int(mix(72.0, 18.0, abs(dir.y)));
-        //const int sampleCount = 12;
+        int sampleCount = max(1, int(mix(72.0, 18.0, abs(dir.y)) * CLOUD_QUALITY));
 
         float ds = len / float(sampleCount);
         vec3 stepVec = dir * ds;
@@ -148,7 +147,7 @@
         float transmittance = 1.0;
         vec3 scattering = vec3(0.0);
         for(int i = 0; i < sampleCount; i++) {
-            float stepCloudDensity = sampleCloudDensity(samplePos);
+            float stepCloudDensity = sampleCloudDensity(samplePos, cloudBottomHeight, cloudThickness);
             float stepTransmittance = 1.0;
 
             if(stepCloudDensity > 1e-5) {
@@ -157,14 +156,14 @@
                 float sigmaE = sigmaS + sigmaA;
                 stepTransmittance = exp(-sigmaE * ds);
 
-                float lightVisibility = CloudTransmittance(samplePos, lightDir, stepCloudDensity, 3);
+                float lightVisibility = CloudTransmittance(samplePos, lightDir, stepCloudDensity, 3, cloudTopHeight, cloudBottomHeight, cloudThickness);
                 vec3 lightEnergy = lightColor * lightVisibility * sigmaS;
 
                 float D = CloudMultiScatteringD;
                 float f_ms = (sigmaS / sigmaE) * (1.0 - exp(-D * sigmaE));
                 vec3 multiScattering = lightEnergy * f_ms / max(1.0 - f_ms, 1e-6) * uniform_phase;
 
-                float ambientVisibility = CloudTransmittance(samplePos, vec3(0.0, 1.0, 0.0), stepCloudDensity, 2) * 0.5 + 0.5;
+                float ambientVisibility = CloudTransmittance(samplePos, vec3(0.0, 1.0, 0.0), stepCloudDensity, 2, cloudTopHeight, cloudBottomHeight, cloudThickness) * 0.5 + 0.5;
                 vec3 ambientlight = ambientColor * ambientVisibility * sigmaS;
 
                 vec3 stepScattering = lightEnergy * phase + multiScattering + ambientlight;
@@ -219,11 +218,11 @@
         n /= c;
 
         float cloudRange = 0.35;
-        float cloudDensity = remapSaturate(n - 1.0 + cloudRange, 0.0, cloudRange, 0.0, 1.0) * 0.035 * CloudDensityMultiplier;
+        float cloudDensity = remapSaturate(n - 1.0 + cloudRange, 0.0, cloudRange, 0.0, 1.0) * 0.035 * mix(CLOUD_CLEAR_DENSITY, CLOUD_RAIN_DENSITY, rainStrength);
         if(cloudDensity < 1e-5) return vec4(0.0, 0.0, 0.0, 1.0);
 
         float cosTheta = dot(lightDir, dir);
-        float forwardPhase = getPhase(cosTheta, 0.5);
+        float forwardPhase = getPhase(cosTheta,  0.5);
         float rearPhase = getPhase(cosTheta, -0.5);
         float phase = mix(forwardPhase, rearPhase, 0.2);
 

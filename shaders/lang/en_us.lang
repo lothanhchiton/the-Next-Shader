@@ -1,6 +1,26 @@
 option.INFOMATION = This Shader
 value.INFOMATION.A = By Coldnight || Modified By Tax
 
+screen.ATMOSPHERE = Atmosphere
+
+screen.CLOUDS = Clouds
+screen.VL = Volumetric Clouds
+option.CLOUD_QUALITY = Cloud Quality
+
+screen.VL_CLEAR = Clear Setting
+option.CLOUD_CLEAR_ALTITUDE = Altitude
+option.CLOUD_CLEAR_THICKNESS = Thickness
+option.CLOUD_CLEAR_COVERAGE = Coverage
+option.CLOUD_CLEAR_DENSITY = Density
+option.CLOUD_CLEAR_SCALE = Scale
+
+screen.VL_RAIN = Rain Setting
+option.CLOUD_RAIN_ALTITUDE = Altitude
+option.CLOUD_RAIN_THICKNESS = Thickness
+option.CLOUD_RAIN_COVERAGE = Coverage
+option.CLOUD_RAIN_DENSITY = Density
+otion.CLOUD_RAIN_SCALE = Scale
+
 screen.LIGHTING = Lighting
 
 option.LIGHT_MODE = Light Mode
