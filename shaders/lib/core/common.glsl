@@ -1,5 +1,16 @@
 ////////////////////////////////////数学运算//////////////////////////////////
 
+float interleavedGradientNoise(vec2 coord) {
+    return fract(52.9829189 * fract(dot(coord, vec2(0.06711056, 0.00583715))));
+}
+
+vec2 vogelDiskSample(int i, int count, float phi) {
+    const float goldenAngle = 2.39996323;
+    float r = sqrt((float(i) + 0.5) / float(count));
+    float theta = float(i) * goldenAngle + phi;
+    return r * vec2(cos(theta), sin(theta));
+}
+
 float pSqrt(float x) {
     return sqrt(clamp(x, 0.0, 1.0));
 }

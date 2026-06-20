@@ -42,3 +42,15 @@ option.POM_DEPTH_SCALE = POM Depth
 option.PARALLAX_SHADOW = Parallax Shadow
 option.POM_SHADOW_STEPS = POM Shadow Steps
 option.POM_SHADOW_SOFTNESS = POM Shadow Softness
+
+screen.POST = Post-Processing
+
+screen.DOF = Depth Of Field
+option.DOF = DOF
+option.DOF_BLUR_SKY = Blur Sky
+option.DOF_SAMPLES = Samples
+option.DOF_FOCUS_MODE = Focus Mode
+value.DOF_FOCUS_MODE.0 = Auto-Focus
+value.DOF_FOCUS_MODE.1 = Manual
+option.DOF_MANUAL_DIST = Manual Dist
+option.DOF_BOKEH_SHAPE = Bokeh Shape
