@@ -1,3 +1,5 @@
+
+
 #include "/lib/basefiles.glsl"
 
 varying vec2 lmcoord;
@@ -42,7 +44,7 @@ varying vec3 upskylight;
         tangent = normalize(mat3(gbufferModelViewInverse) * tangent);
         tbnMatrix = mat3(tangent, normalize(cross(tangent, normal) * at_tangent.w), normal);
 
-        lightcol   = texelFetch(colortex5, ivec2(viewSize - 1.0) - ivec2(2, 0), 0).rgb;
+        lightcol = texelFetch(colortex5, ivec2(viewSize - 1.0) - ivec2(2, 0), 0).rgb;
         upskylight = texelFetch(colortex5, ivec2(viewSize - 1.0) - ivec2(6, 0), 0).rgb;
     }
 
@@ -61,7 +63,6 @@ varying vec3 upskylight;
             discard;
         }
         texcolor.rgb *= glcolor.rgb;
-        //texcolor.rgb *= texture(lightmap, lmcoord).rgb;
         texcolor.rgb = GammaToLinear(texcolor.rgb);
 
         vec3 screenPos = (clip_pos.xyz / clip_pos.w) * 0.5 + 0.5;
@@ -114,9 +115,44 @@ varying vec3 upskylight;
 
             float fresnel = fresnelSchlick(max0(dot(worldNormal, -worldDir)), 0.02);
             outcol = mix(outcol, rayTracingCol, fresnel);
-        }
+        } else if(abs(blockID - 79.0) < 0.5) {
+            vec3 viewPos = view_pos.xyz;
+            vec3 worldPos = matrixMultiply(gbufferModelViewInverse, vec4(viewPos, 1.0));
+            vec3 worldDir = normalize(mat3(gbufferModelViewInverse) * viewPos);
+            vec3 worldNormal = normal;
 
-        else {
+            outcol = vec3(0.02, 0.025, 0.03) * lightcol * lmcoord.y;
+
+            vec3 worldReflectDir = reflect(worldDir, worldNormal);
+            if(dot(worldReflectDir, worldNormal) < 0.0) {
+                worldReflectDir = reflect(worldReflectDir, worldNormal);
+            }
+
+            vec2 rayTracingPos = vec2(0.0);
+            bool rayTracingIsHit = false;
+            vec3 viewReflectDir = normalize(mat3(gbufferModelView) * worldReflectDir);
+            screenRayTracingDDA(viewPos, viewReflectDir, rayTracingPos, rayTracingIsHit);
+
+            vec3 rayTracingCol;
+            if(rayTracingIsHit) {
+                vec2 prevUV = getPreCoord(rayTracingPos.xy);
+                rayTracingCol = texture(colortex7, outScreen(prevUV) ? rayTracingPos.xy : prevUV).rgb;
+            } else {
+                rayTracingCol = sampleSkybox(worldReflectDir);
+                vec3 trans = TransToAtmos(cameraLocation, worldReflectDir);
+                rayTracingCol = drawSun(rayTracingCol, worldReflectDir, trans);
+                #ifdef REFLECTED_CLOUD
+                    vec4 cloud2D = RenderCloud2D(cameraLocation, worldReflectDir, lightDir, lightLuminance);
+                    rayTracingCol = rayTracingCol * cloud2D.a + cloud2D.rgb;
+                    vec4 cloud3D = RenderCloud(cameraLocation, worldReflectDir, lightDir, lightLuminance, upskylight);
+                    rayTracingCol = rayTracingCol * cloud3D.a + cloud3D.rgb;
+                #endif
+                rayTracingCol *= lmcoord.y;
+            }
+
+            float fresnel = fresnelSchlick(max0(dot(worldNormal, -worldDir)), 0.04);
+            outcol = mix(outcol, rayTracingCol, max(fresnel, 0.97));
+        } else {
             outcol = texture(colortex4, screenPos.xy).rgb;
             outcol = mix(outcol, GammaToLinear(texcolor.rgb) * lightcol * 0.5, texcolor.a * 0.2);
         }

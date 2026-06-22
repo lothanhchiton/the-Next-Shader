@@ -1,3 +1,5 @@
+#define MAT_ICE 10.0
+
 /*
 const int colortex0Format = RGB16F;
 const int colortex1Format = RGB16;
@@ -91,7 +93,7 @@ vec3 handPosition2 = vec3(-0.9, -0.65, -near - 0.1);
 #define GTAO_ON
 //#define VanillaAO
 #define WaterCaustics_ON
-//#define REFLECTED_CLOUD
+#define REFLECTED_CLOUD
 
 // #define PARALLAX
 #define POM_STEPS 64 // [8 12 16 20 24 28 32 36 40 44 48 52 56 60 64 78 82 86 90 94 98 102 106 120 124 160 164]
