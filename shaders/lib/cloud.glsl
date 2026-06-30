@@ -1,6 +1,9 @@
 #ifndef CLOUD_GLSL
     #define CLOUD_GLSL
 
+    const float cloudHighRealHeight = EarthRadius + CLOUD_HIGH_ALTITUDE;
+    const float cloudHighEpsilon = 0.001;
+
     #define CloudScatteringCoefficient 50.0
     #define CloudAbsorptionCoefficient 20.0
     #define CloudMultiScatteringD 0.5
@@ -236,6 +239,79 @@
         vec3 insca = atmosphere[0];
         vec3 outsca = atmosphere[1];
         scattering = scattering * outsca + insca * (1.0 - transmittance);
+
+        return vec4(scattering, transmittance);
+    }
+
+    // from Revelation by HaringPro
+    // Apache 2.0
+    float CloudHighDensity(vec2 rayPos) {
+        const float windAngle = radians(CLOUD_HIGH_WIND_ANGLE);
+        const vec2 windVelocity = vec2(cos(windAngle), sin(windAngle)) * CLOUD_HIGH_WIND_SPEED;
+        vec2 windOffset = windVelocity * worldTimeCounter;
+
+        rayPos -= windOffset;
+        rayPos += cameraPosition.xz;
+
+        vec2 curlN = texture(curlNoise2D, rayPos * 5e-5).xy * 0.25;
+        vec2 position = rayPos * 2e-4 + curlN;
+
+        float density = 0.0;
+
+        #ifdef CLOUD_CIRRUS
+            float ciCoverage = CLOUD_CI_COVERAGE - 0.5 + texture(noisetex, position * 0.01).z;
+            ciCoverage = saturate(ciCoverage - texture(cloudMapTex, position * 0.01).y);
+
+            if (ciCoverage > 0.25) {
+                vec2 p = position + ciCoverage * 0.5 - windOffset * 1e-4;
+                float cirrus = texture(cirroLutTex, p * 0.25).y;
+                cirrus *= smoothstep(0.25, 1.0, ciCoverage);
+                density += cirrus * cirrus;
+            }
+        #endif
+
+        #ifdef CLOUD_CIRROCUMULUS
+            float ccCoverage = CLOUD_CC_COVERAGE - saturate(texture(noisetex, position * 0.01).z * 1.5);
+            ccCoverage = saturate(texture(cloudMapTex, position * 0.01).x * 0.75 + ccCoverage);
+
+            if (ccCoverage > 0.25) {
+                vec2 p = position + ccCoverage * 0.5 - windOffset * 1e-4;
+                float cirrocumulus = pow2(texture(cirroLutTex, p * 0.25).x);
+                cirrocumulus *= smoothstep(0.25, 1.0, ccCoverage);
+                density += cirrocumulus;
+            }
+        #endif
+
+        return density;
+    }
+
+    vec4 RenderCloudHigh(vec3 pos, vec3 dir, vec3 lightDir, vec3 lightLuminance) {
+        float lenToEarth = rayIntersectSphere(pos, dir, pow2(EarthRadius + ReferenceHeight));
+        if (pos.y < cloudHighRealHeight && lenToEarth > 0.0) return vec4(0.0, 0.0, 0.0, 1.0);
+
+        float lenToCloud = rayIntersectSphere(pos, dir, cloudHighRealHeight * cloudHighRealHeight);
+        if (lenToCloud < 0.0) return vec4(0.0, 0.0, 0.0, 1.0);
+
+        vec3 cloudPos = pos + dir * lenToCloud;
+
+        float density = CloudHighDensity(cloudPos.xz * 1000.0);
+        if (density < cloudHighEpsilon) return vec4(0.0, 0.0, 0.0, 1.0);
+
+        lightLuminance *= remapSaturate(lightDir.y, 0.02, 0.1, 0.0, 1.0);
+        vec3 lightColor = lightLuminance * TransToAtmos(cloudPos, lightDir);
+
+        float cosTheta = dot(lightDir, dir);
+        float phase = mix(getPhase(cosTheta, 0.5), getPhase(cosTheta, -0.5), 0.3);
+
+        float sigmaS = density * CloudScatteringCoefficient * 0.08;
+        float sigmaA = density * CloudAbsorptionCoefficient * 0.02;
+        float sigmaE = sigmaS + sigmaA;
+    
+        float transmittance = exp(-sigmaE);
+        vec3 scattering = lightColor * sigmaS * phase * (1.0 - transmittance) / max(sigmaE, 1e-6);
+
+        mat2x3 atmo = AtmosphereScattering(pos, dir, lenToCloud, lightDir, lightLuminance, 4);
+        scattering = scattering * atmo[1] + atmo[0] * (1.0 - transmittance);
 
         return vec4(scattering, transmittance);
     }

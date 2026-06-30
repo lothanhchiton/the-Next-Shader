@@ -40,8 +40,10 @@ varying vec2 texcoord;
         }
         outcol = mix(outcol, bloom, mixFactor);
 
-        #ifdef LENS_FLARE
-            outcol += lensFlare(texcoord);
+        #ifndef DIM_END
+            #ifdef LENS_FLARE
+                outcol += lensFlare(texcoord);
+            #endif
         #endif
 
         color0 = vec4(outcol, 1.0);

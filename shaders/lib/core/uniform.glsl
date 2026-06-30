@@ -77,6 +77,7 @@ uniform sampler2D colortex7;
 uniform sampler2D colortex8;
 uniform sampler2D colortex9;
 uniform sampler2D colortex10;
+uniform sampler2D colortex11;
 
 uniform sampler2D gdepthtex;
 uniform sampler2D depthtex0;
@@ -90,6 +91,12 @@ uniform sampler2D shadowcolor0;
 uniform sampler2D shadowcolor1;
 
 uniform float alphaTestRef;
+
+uniform sampler2D curlNoise2D;
+uniform sampler2D cirroLutTex;
+uniform sampler2D cloudMapTex;
+
+uniform float worldTimeCounter;
 
 #ifdef FSH
     ivec2 texelUV = ivec2(gl_FragCoord.xy);

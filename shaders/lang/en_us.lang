@@ -1,4 +1,4 @@
-option.INFOMATION = This Shader
+option.INFOMATION = WIP | This Shader
 value.INFOMATION.A = By Coldnight || Modified By Tax
 
 screen.ATMOSPHERE = Atmosphere
@@ -20,6 +20,18 @@ option.CLOUD_RAIN_THICKNESS = Thickness
 option.CLOUD_RAIN_COVERAGE = Coverage
 option.CLOUD_RAIN_DENSITY = Density
 otion.CLOUD_RAIN_SCALE = Scale
+
+screen.PL = Plane Clouds
+option.CLOUD_CIRRUS = Cirrus
+option.CLOUD_CI_COVERAGE = Cirrus Coverage
+option.CLOUD_CIRROCUMULUS = Cirro Cumulus
+option.CLOUD_CC_COVERAGE = Cirro Cumulus Coverage
+
+screen.END = Black Hole
+option._vc1 = Scale
+option._vc2 = Brightness
+option._vc3 = Angle
+suffix._vc3 = °
 
 screen.LIGHTING = Lighting
 

@@ -1,3 +1,5 @@
+
+
 #include "/lib/basefiles.glsl"
 
 varying vec2 texcoord;
@@ -10,7 +12,7 @@ varying vec3 upskylight;
         gl_Position = ftransform();
         texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 
-        lightcol   = texelFetch(colortex5, ivec2(viewSize - 1.0) - ivec2(2, 0), 0).rgb;
+        lightcol = texelFetch(colortex5, ivec2(viewSize - 1.0) - ivec2(2, 0), 0).rgb;
         upskylight = texelFetch(colortex5, ivec2(viewSize - 1.0) - ivec2(6, 0), 0).rgb;
     }
 
@@ -22,6 +24,8 @@ varying vec3 upskylight;
     #include "/lib/fog.glsl"
     #include "/lib/cloud.glsl"
     #include "/lib/temporal.glsl"
+    #include "/lib/stars.glsl"
+    #include "/lib/end.glsl"
 
     /* RENDERTARGETS: 4,6,10 */
     layout(location = 0) out vec4 color4;
@@ -39,61 +43,75 @@ varying vec3 upskylight;
                 for(int j = -1; j <= 1; j++){
                     ivec2 nowUV = ivec2(texcoord4 * viewSize) + ivec2(i, j);
                     float nowDepth = texelFetch(depthtex1, nowUV, 0).r;
-
                     issky = issky || (nowDepth == 1.0);
                 }
             }
             if(issky) {
-                float depth = texture(depthtex1, texcoord4).r;
+                #ifdef DIM_END
+                    float depth = texture(depthtex1, texcoord4).r;
+                    vec3 viewPos = GetViewPosition(texcoord4, depth);
+                    vec3 worldDir = normalize(mat3(gbufferModelViewInverse) * viewPos);
 
-                vec3 viewPos = GetViewPosition(texcoord4, depth);
-                vec3 worldPos = matrixMultiply(gbufferModelViewInverse, vec4(viewPos, 1.0));
-                vec3 worldDir = normalize(mat3(gbufferModelViewInverse) * viewPos);
-                float worldDis = length(worldPos);
+                    vec3 endColor = vec3(0.0);
+                    endColor += render_stars(worldDir);
+                    _vcRender(endColor, worldDir, blueNoise, 1e6);
 
-                vec3 skyColor = RenderSky(worldDir);
-                vec3 trans = TransToAtmos(cameraLocation, worldDir);
-                if(isDay) {
-                    skyColor = drawSun(skyColor, worldDir, trans);
-                } else {
-                    skyColor = drawStar(skyColor, worldDir, trans);
-                    skyColor = drawMoon(skyColor, worldDir, trans);
-                }
-                vec4 cloud2D = RenderCloud2D(cameraLocation, worldDir, lightDir, lightLuminance);
-                skyColor = skyColor * cloud2D.a + cloud2D.rgb;
+                    outcol4.rgb = endColor;
+                #else
+                    float depth = texture(depthtex1, texcoord4).r;
 
-                float jitter = blueNoise * 0.01;
-                outcol4.rgb = skyColor + vec3(blueNoise / 255.0) * lightcol;
+                    vec3 viewPos = GetViewPosition(texcoord4, depth);
+                    vec3 worldPos = matrixMultiply(gbufferModelViewInverse, vec4(viewPos, 1.0));
+                    vec3 worldDir = normalize(mat3(gbufferModelViewInverse) * viewPos);
+                    float worldDis = length(worldPos);
+
+                    vec3 skyColor = RenderSky(worldDir);
+                    vec3 trans = TransToAtmos(cameraLocation, worldDir);
+                    if(isDay) {
+                        skyColor = drawSun(skyColor, worldDir, trans);
+                    } else {
+                        skyColor = drawStar(skyColor, worldDir, trans);
+                        skyColor = drawMoon(skyColor, worldDir, trans);
+                    }
+                    vec4 cloudHigh = RenderCloudHigh(cameraLocation, worldDir, lightDir, lightLuminance);
+                    skyColor = skyColor * cloudHigh.a + cloudHigh.rgb;
+
+                    vec4 cloud2D = RenderCloud2D(cameraLocation, worldDir, lightDir, lightLuminance);
+                    skyColor = skyColor * cloud2D.a + cloud2D.rgb;
+
+                    outcol4.rgb = skyColor + vec3(blueNoise / 255.0) * lightcol;
+                #endif
             }
         }
 
-        vec2 texcoord41 = (texcoord - vec2(0.5, 0.0)) * 2.0;
-        if(inScreen(texcoord41) || rainStrength > 0.5) {
-            int radius = lightDir.y > 0.25 ? 1 : 2;
-            bool issky = false;
-            for(int i = -radius; i <= radius; i++){
-                for(int j = -radius; j <= radius; j++){
-                    ivec2 nowUV = ivec2(texcoord41 * viewSize) + ivec2(i, j);
-                    float nowDepth = texelFetch(depthtex1, nowUV, 0).r;
-
-                    issky = issky || (nowDepth == 1.0);
+        #ifndef DIM_END
+            vec2 texcoord41 = (texcoord - vec2(0.5, 0.0)) * 2.0;
+            if(inScreen(texcoord41) || rainStrength > 0.5) {
+                int radius = lightDir.y > 0.25 ? 1 : 2;
+                bool issky = false;
+                for(int i = -radius; i <= radius; i++){
+                    for(int j = -radius; j <= radius; j++){
+                        ivec2 nowUV = ivec2(texcoord41 * viewSize) + ivec2(i, j);
+                        float nowDepth = texelFetch(depthtex1, nowUV, 0).r;
+                        issky = issky || (nowDepth == 1.0);
+                    }
                 }
+                if(issky) {
+                    float depth = texture(depthtex1, texcoord41).r;
+
+                    vec3 viewPos = GetViewPosition(texcoord41, depth);
+                    vec3 worldPos = matrixMultiply(gbufferModelViewInverse, vec4(viewPos, 1.0));
+                    vec3 worldDir = normalize(mat3(gbufferModelViewInverse) * viewPos);
+
+                    vec3 skylight = upskylight;
+                    vec4 cloud3D = RenderCloud(cameraLocation, worldDir, lightDir, lightLuminance, skylight);
+
+                    outcol4 = cloud3D;
+                    outcol4 = cloudTemporal(outcol4, worldPos);
+                }
+                outcol6 = outcol4;
             }
-            if(issky) {
-                float depth = texture(depthtex1, texcoord41).r;
-
-                vec3 viewPos = GetViewPosition(texcoord41, depth);
-                vec3 worldPos = matrixMultiply(gbufferModelViewInverse, vec4(viewPos, 1.0));
-                vec3 worldDir = normalize(mat3(gbufferModelViewInverse) * viewPos);
-
-                vec3 skylight = upskylight;
-                vec4 cloud3D = RenderCloud(cameraLocation, worldDir, lightDir, lightLuminance, skylight);
-
-                outcol4 = cloud3D;
-                outcol4 = cloudTemporal(outcol4, worldPos);
-            }
-            outcol6 = outcol4;
-        }
+        #endif
 
         color4 = outcol4;
         color6 = outcol6;

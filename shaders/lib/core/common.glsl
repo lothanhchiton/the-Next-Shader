@@ -1,5 +1,12 @@
 ////////////////////////////////////数学运算//////////////////////////////////
 
+float cubicsmooth(float x) {
+    return x * x * (3.0 - 2.0 * x);
+}
+float rcp(float x) {
+    return 1.0 / x;
+}
+
 float interleavedGradientNoise(vec2 coord) {
     return fract(52.9829189 * fract(dot(coord, vec2(0.06711056, 0.00583715))));
 }
@@ -405,6 +412,34 @@ float sample3DNoise(vec3 p) {
     return mix(n1, n2, pf.y);
 }
 
+vec4 hash4(vec2 p) {
+    vec4 p4 = fract(vec4(p.xyxy) * vec4(0.1031, 0.1030, 0.0973, 0.1099));
+    p4 += dot(p4, p4.wzxy + 33.33);
+    return fract((p4.xxyz + p4.yzzw) * p4.zywx);
+}
+
+vec3 blackbody(float temp) {
+    temp = clamp(temp, 1000.0, 40000.0) / 100.0;
+    vec3 col;
+
+    if(temp <= 66.0) {
+        col.r = 1.0;
+        col.g = saturate(0.39 * log(temp) - 0.63);
+    } else {
+        col.r = saturate(1.29 * pow(temp - 60.0, -0.133));
+        col.g = saturate(1.13 * pow(temp - 60.0, -0.075));
+    }
+
+    if(temp >= 66.0) {
+        col.b = 1.0;
+    } else if(temp <= 19.0) {
+        col.b = 0.0;
+    } else {
+        col.b = saturate(0.543 * log(temp - 10.0) - 1.196);
+    }
+
+    return col;
+}
 uint HashWellons32(uint x){
 	x ^= x >> 17;
 	x *= 0xed5ad4bbu;
